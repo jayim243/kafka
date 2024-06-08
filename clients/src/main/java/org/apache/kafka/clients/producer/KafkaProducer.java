@@ -76,6 +76,8 @@ import org.apache.kafka.common.utils.Time;
 import org.apache.kafka.common.utils.Timer;
 import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 import java.net.InetSocketAddress;
 import java.time.Duration;
@@ -90,6 +92,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 
 
 /**
@@ -236,6 +239,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class KafkaProducer<K, V> implements Producer<K, V> {
 
     private final Logger log;
+    private static final Logger PRODUCER_LOG = LoggerFactory.getLogger("ProducerLogger");
     private static final String JMX_PREFIX = "kafka.producer";
     public static final String NETWORK_THREAD_PREFIX = "kafka-producer-network-thread";
     public static final String PRODUCER_METRIC_GROUP_NAME = "producer-metrics";
@@ -988,6 +992,10 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
     public Future<RecordMetadata> send(ProducerRecord<K, V> record, Callback callback) {
         // intercept the record, which can be potentially modified; this method does not throw exceptions
         ProducerRecord<K, V> interceptedRecord = this.interceptors.onSend(record);
+        Stream.of(interceptedRecord).forEach(x -> {
+            String log = String.format("Log message to topic: %s, key: %s, value: %s", x.topic(), x.key(), x.value());
+            PRODUCER_LOG.info(log);
+        });
         return doSend(interceptedRecord, callback);
     }
 

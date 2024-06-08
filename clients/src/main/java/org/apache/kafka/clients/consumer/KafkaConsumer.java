@@ -34,6 +34,8 @@ import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.common.utils.Time;
 import org.apache.kafka.common.utils.Timer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.Collection;
@@ -522,7 +524,7 @@ import static org.apache.kafka.common.utils.Utils.propsToMap;
  * commit.
  */
 public class KafkaConsumer<K, V> implements Consumer<K, V> {
-
+    private static final Logger CONSUMER_LOG = LoggerFactory.getLogger("ConsumerLogger");
     private final static ConsumerDelegateCreator CREATOR = new ConsumerDelegateCreator();
 
     private final ConsumerDelegate<K, V> delegate;
@@ -871,7 +873,18 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      */
     @Override
     public ConsumerRecords<K, V> poll(final Duration timeout) {
-        return delegate.poll(timeout);
+        // Call the delegate's poll method to get the records
+        ConsumerRecords<K, V> records = delegate.poll(timeout);
+
+        // Log each record consumed
+        records.forEach(record -> {
+            String log = String.format("Log message from topic: %s, key: %s, value: %s",
+                    record.topic(), record.key(), record.value());
+            CONSUMER_LOG.info(log);
+        });
+
+        // Return the records to the caller
+        return records;
     }
 
     /**
