@@ -988,6 +988,9 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
      *                          or missing metadata within {@code max.block.ms}.
      * @throws KafkaException If a Kafka related error occurs that does not belong to the public API exceptions.
      */
+    protected Logger getProducerLogger() {
+        return PRODUCER_LOG;
+    }
     @Override
     public Future<RecordMetadata> send(ProducerRecord<K, V> record, Callback callback) {
         // intercept the record, which can be potentially modified; this method does not throw exceptions

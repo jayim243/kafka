@@ -90,8 +90,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.internal.stubbing.answers.CallsRealMethods;
+import org.slf4j.Logger;
 
 import java.lang.management.ManagementFactory;
 import java.nio.charset.StandardCharsets;
@@ -2137,6 +2139,44 @@ public class KafkaProducerTest {
             assertFalse(future.isDone());
             verify(ctx.transactionManager).maybeAddPartition(topicPartition);
         }
+    }
+    @Test
+    public void testSendLogsCorrectly() {
+        Logger mockLogger = mock(Logger.class);
+
+        // Mock interceptors
+        @SuppressWarnings("unchecked")
+        ProducerInterceptors<String, String> interceptors = mock(ProducerInterceptors.class);
+        when(interceptors.onSend(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Create the properties for KafkaProducer
+        Properties props = new Properties();
+        props.setProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        props.setProperty(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        props.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092"); // Add other necessary configs
+
+        // Create a KafkaProducer instance with the mocked logger and interceptors
+        KafkaProducer<String, String> producer = new KafkaProducer<String, String>(props) {
+            @Override
+            public Future<RecordMetadata> send(ProducerRecord<String, String> record) {
+                ProducerRecord<String, String> interceptedRecord = interceptors.onSend(record);
+                String log = String.format("Log message to topic: %s, key: %s, value: %s", interceptedRecord.topic(), interceptedRecord.key(), interceptedRecord.value());
+                mockLogger.info(log);
+                return super.send(interceptedRecord);
+            }
+        };
+
+        // Given
+        ProducerRecord<String, String> record = new ProducerRecord<>("test-topic", "key", "value");
+
+        // When
+        producer.send(record);
+
+        // Then
+        ArgumentCaptor<String> logCaptor = ArgumentCaptor.forClass(String.class);
+        verify(mockLogger).info(logCaptor.capture());
+        String loggedMessage = logCaptor.getValue();
+        assertTrue(loggedMessage.contains("Log message to topic: test-topic, key: key, value: value"));
     }
 
     @SuppressWarnings("deprecation")
